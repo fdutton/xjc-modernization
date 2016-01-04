@@ -1,0 +1,3 @@
+fgd.tools.extensions.xjc.JSR310Plugin
+fgd.tools.extensions.xjc.JSR310BackportPlugin
+fgd.tools.extensions.xjc.ModernizationPlugin
