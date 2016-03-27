@@ -3,7 +3,7 @@ package fgd.tools.extensions.xjc;
 import static com.sun.codemodel.internal.JMod.*;
 import static fgd.tools.extensions.xjc.XJCUtils.*;
 
-import java.util.Objects;
+import static java.util.Objects.*;
 
 import javax.validation.constraints.NotNull;
 
@@ -25,7 +25,7 @@ final class FieldSummary {
 	public FieldSummary(@NotNull final FieldOutline def, final boolean enableIntrospection) {
 		this.def = def;
 		this.name = def.getPropertyInfo().getName(false);
-		this.var = Objects.requireNonNull(def.parent().implClass.fields().get(this.name));
+		this.var = requireNonNull(def.parent().implClass.fields().get(this.name));
 		this.isRequired = isRequired(def);
 		this.isStaticField = (this.var.mods().getValue() & STATIC) != 0;
         this.type = var.type();

@@ -39,8 +39,8 @@ public final class MultiValuedFieldRenderer extends AbstractFieldRenderer {
     @Override
     public FieldOutline generate(ClassOutlineImpl context, CPropertyInfo propertyInfo) {
         final BeanGenerator generator = context.parent();
-        final JCodeModel codeModel = generator.getCodeModel();
         final Model model = generator.getModel();
+        final JCodeModel codeModel = generator.getCodeModel();
 
         final JType memberType = getType(context, propertyInfo, EXPOSED);
         final JClass exposedType = codeModel.ref(List.class).narrow(memberType.boxify());
@@ -104,7 +104,7 @@ public final class MultiValuedFieldRenderer extends AbstractFieldRenderer {
     private final JFieldVar emitField(ClassOutlineImpl context, CPropertyInfo propertyInfo, JType exposedType, JType memberType) {
         final int visibility = configuration().privatizeFields() ? PRIVATE : PROTECTED;
         final JFieldVar field = context.implClass.field(visibility, exposedType, propertyInfo.getName(false));
-        for (final JClass annotation : configuration().nullableAnnotations(context.parent().getCodeModel())) {
+        for (final JClass annotation : configuration().nullableAnnotations(context.implClass.owner())) {
             field.annotate(annotation);
         }
         annotate(context, propertyInfo, field, memberType);

@@ -9,6 +9,8 @@ public interface Configuration {
 
     boolean android();
 
+    boolean finalizeFields();
+
     boolean finalizeMethods();
 
     boolean findbugs();
@@ -19,14 +21,16 @@ public interface Configuration {
 
     boolean jsr305();
 
+    boolean jsr349();
+
     boolean lombok();
 
     boolean privatizeFields();
 
     boolean useOptional();
 
-    @NotNull Iterable<JClass> notNullableAnnotations(final @NotNull JCodeModel model);
+    @NotNull Iterable<JClass> notNullableAnnotations(@NotNull JCodeModel codeModel);
 
-    @NotNull Iterable<JClass> nullableAnnotations(final @NotNull JCodeModel model);
+    @NotNull Iterable<JClass> nullableAnnotations(@NotNull JCodeModel codeModel);
 
 }

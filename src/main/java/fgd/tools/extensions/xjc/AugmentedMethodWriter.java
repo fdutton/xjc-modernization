@@ -1,6 +1,6 @@
 package fgd.tools.extensions.xjc;
 
-import java.util.Objects;
+import static java.util.Objects.*;
 
 import javax.validation.constraints.NotNull;
 
@@ -15,7 +15,7 @@ public abstract class AugmentedMethodWriter extends MethodWriter {
 
     protected AugmentedMethodWriter(final ClassOutline target, final @NotNull Configuration configuration, final boolean requiredField, final boolean multiValuedField) {
         super(target);
-        this.configuration = Objects.requireNonNull(configuration);
+        this.configuration = requireNonNull(configuration);
         this.multiValuedField = multiValuedField;
         this.requiredField = requiredField;
     }

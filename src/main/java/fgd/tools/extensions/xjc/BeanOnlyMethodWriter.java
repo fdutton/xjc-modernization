@@ -5,7 +5,6 @@ import static com.sun.codemodel.internal.JMod.*;
 import javax.validation.constraints.NotNull;
 
 import com.sun.codemodel.internal.JClass;
-import com.sun.codemodel.internal.JCodeModel;
 import com.sun.codemodel.internal.JDefinedClass;
 import com.sun.codemodel.internal.JDocComment;
 import com.sun.codemodel.internal.JMethod;
@@ -28,9 +27,7 @@ public class BeanOnlyMethodWriter extends AugmentedMethodWriter {
 		final JVar var = this.method.param(type, name);
 		var.mods().setFinal(true);
 		if (!type.isPrimitive()) {
-	        final JCodeModel cm = codeModel;
-		    assert null != cm;
-            for (final JClass annotation : isRequiredField() ? configuration().notNullableAnnotations(cm) : configuration().nullableAnnotations(cm)) {
+            for (final JClass annotation : isRequiredField() ? configuration().notNullableAnnotations(type.owner()) : configuration().nullableAnnotations(type.owner())) {
                 var.annotate(annotation);
             }
 		}
@@ -42,9 +39,7 @@ public class BeanOnlyMethodWriter extends AugmentedMethodWriter {
         final int extendability = configuration().finalizeMethods() ? FINAL : NONE;
 		this.method = this.implementation.method(PUBLIC | extendability, returnType, methodName);
         if (!returnType.isPrimitive()) {
-            final JCodeModel cm = codeModel;
-            assert null != cm;
-            for (final JClass annotation : isMultiValuedField() || isRequiredField() || configuration().useOptional() ? configuration().notNullableAnnotations(cm) : configuration().nullableAnnotations(cm)) {
+            for (final JClass annotation : isMultiValuedField() || isRequiredField() || configuration().useOptional() ? configuration().notNullableAnnotations(returnType.owner()) : configuration().nullableAnnotations(returnType.owner())) {
                 this.method.annotate(annotation);
             }
         }

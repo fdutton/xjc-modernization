@@ -2,8 +2,12 @@ package fgd.tools.extensions.xjc;
 
 import static com.sun.codemodel.internal.JMod.*;
 
+import static java.util.Objects.*;
+
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
@@ -15,6 +19,8 @@ import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import com.sun.codemodel.internal.JAnnotationArrayMember;
+import com.sun.codemodel.internal.JAnnotationUse;
+import com.sun.codemodel.internal.JAnnotationValue;
 import com.sun.codemodel.internal.JClass;
 import com.sun.codemodel.internal.JClassAlreadyExistsException;
 import com.sun.codemodel.internal.JDefinedClass;
@@ -24,10 +30,8 @@ import com.sun.codemodel.internal.JOp;
 import com.sun.codemodel.internal.JPackage;
 import com.sun.codemodel.internal.JType;
 import com.sun.codemodel.internal.JVar;
-import com.sun.tools.internal.xjc.BadCommandLineException;
 import com.sun.tools.internal.xjc.Options;
 import com.sun.tools.internal.xjc.Plugin;
-import com.sun.tools.internal.xjc.model.TypeUse;
 import com.sun.tools.internal.xjc.outline.Aspect;
 import com.sun.tools.internal.xjc.outline.Outline;
 import com.sun.tools.internal.xjc.outline.PackageOutline;
@@ -35,71 +39,76 @@ import com.sun.tools.internal.xjc.reader.xmlschema.SimpleTypeBuilder;
 
 public abstract class JSR310AbstractPlugin extends Plugin {
 
-    private final NTypeUse durationType;
-    private final NTypeUse instantType;
-    private final NTypeUse periodType;
+    private final @NotNull Set</*@NotNull*/ NTypeUse> replaced = new HashSet<>();
 
-    protected JSR310AbstractPlugin(@NotNull final NTypeUse durationType, @NotNull final NTypeUse instantType, @NotNull final NTypeUse periodType) {
-		this.durationType = Objects.requireNonNull(durationType, "durationType cannot be null");
-		this.instantType = Objects.requireNonNull(instantType, "instantType cannot be null");
-		this.periodType = Objects.requireNonNull(periodType, "periodType cannot be null");
-	}
-
-    @Override
-    public void onActivated(Options opts) throws BadCommandLineException {
-        Map<String, TypeUse> m = SimpleTypeBuilder.builtinConversions;
-        m.put("dateTime",       instantType);
-        m.put("date",           instantType);
-        m.put("time",           instantType);
-        m.put("gYearMonth",     instantType);
-        m.put("gYear",          instantType);
-        m.put("gMonthDay",      instantType);
-        m.put("gDay",           instantType);
-        m.put("gMonth",         instantType);
-        m.put("duration",       periodType);
+    protected void replace(final @NotNull String schemaType, final @NotNull NTypeUse typeUse) {
+        // TODO: Limit schemaType to time-based simple types.
+        requireNonNull(schemaType, "schemaType cannot be null");
+        requireNonNull(typeUse, "typeUse cannot be null");
+        SimpleTypeBuilder.builtinConversions.put(schemaType, typeUse);
+        replaced.add(typeUse);
     }
 
     @Override
     public boolean run(Outline model, Options opts, ErrorHandler errHandler) throws SAXException {
-        final JType duration = durationType.toType(model, Aspect.IMPLEMENTATION);
-        final JType instant = instantType.toType(model, Aspect.IMPLEMENTATION);
-        final JType period = periodType.toType(model, Aspect.IMPLEMENTATION);
+        for (final NTypeUse typeUse : this.replaced) {
+            assert null != typeUse;
+            emitAdapter(model, opts, errHandler, typeUse);
+        }
+
+        return true;
+    }
+
+    private void emitAdapter(Outline model, Options opts, ErrorHandler errHandler, final @NotNull NTypeUse typeUse) throws SAXException {
+        final JType type = typeUse.toType(model, Aspect.IMPLEMENTATION);
+        final String adapterName = type.name() + "Adapter";
 
         for (final PackageOutline po : model.getAllPackageContexts()) {
             final JPackage p = po._package();
 
-            JClass durationAdapter = p._getClass("DurationAdapter");
-            if (null == durationAdapter) {
+            JClass adapterClass = p._getClass(adapterName);
+            if (null == adapterClass) {
                 try {
-                    durationAdapter = emitAdapter(p, duration, "DurationAdapter");
-                } catch (JClassAlreadyExistsException e) {
-                    errHandler.warning(new SAXParseException(e.getMessage(), null));
-                }
-            }
-            JClass instantAdapter = p._getClass("InstantAdapter");
-            if (null == instantAdapter) {
-                try {
-                    instantAdapter = emitAdapter(p, instant, "InstantAdapter");
-                } catch (JClassAlreadyExistsException e) {
-                    errHandler.warning(new SAXParseException(e.getMessage(), null));
-                }
-            }
-            JClass periodAdapter = p._getClass("PeriodAdapter");
-            if (null == periodAdapter) {
-                try {
-                    periodAdapter = emitAdapter(p, period, "PeriodAdapter");
+                    adapterClass = emitAdapter(p, type, adapterName);
                 } catch (JClassAlreadyExistsException e) {
                     errHandler.warning(new SAXParseException(e.getMessage(), null));
                 }
             }
 
-            final JAnnotationArrayMember a = p.annotate(XmlJavaTypeAdapters.class).paramArray("value");
-            a.annotate(XmlJavaTypeAdapter.class).param("type", duration).param("value", durationAdapter);
-            a.annotate(XmlJavaTypeAdapter.class).param("type", instant).param("value", instantAdapter);
-            a.annotate(XmlJavaTypeAdapter.class).param("type", period).param("value", periodAdapter);
+            getXmlJavaTypeAdaptersValue(p)
+                .annotate(XmlJavaTypeAdapter.class)
+                .param("type", type)
+                .param("value", adapterClass)
+                ;
         }
+    }
 
-        return true;
+    private static JAnnotationArrayMember getXmlJavaTypeAdaptersValue(final JPackage p) {
+        requireNonNull(p, "p cannot be null");
+
+        final JAnnotationUse xmlJavaTypeAdapters = getXmlJavaTypeAdapters(p);
+
+        JAnnotationArrayMember a;
+        try {
+            final Map<String, JAnnotationValue> annotationMembers = xmlJavaTypeAdapters.getAnnotationMembers();
+            a = (JAnnotationArrayMember) annotationMembers.get("value");
+            if (null == a) {
+                a = xmlJavaTypeAdapters.paramArray("value");
+            }
+        } catch (NullPointerException e) {
+            a = xmlJavaTypeAdapters.paramArray("value");
+        }
+        return a;
+    }
+
+    private static JAnnotationUse getXmlJavaTypeAdapters(final JPackage p) {
+        final Collection<JAnnotationUse> annotations = p.annotations();
+        for (final JAnnotationUse annotationUse : annotations) {
+            if (XmlJavaTypeAdapters.class.getName().equals(annotationUse.getAnnotationClass().fullName())) {
+                return annotationUse;
+            }
+        }
+        return p.annotate(XmlJavaTypeAdapters.class);
     }
 
     private static JDefinedClass emitAdapter(final JPackage p, final JType boundType, final String name) throws JClassAlreadyExistsException {

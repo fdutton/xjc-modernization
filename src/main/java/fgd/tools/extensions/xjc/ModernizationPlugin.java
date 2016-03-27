@@ -1,5 +1,6 @@
 package fgd.tools.extensions.xjc;
 
+import static com.sun.codemodel.internal.JExpr.*;
 import static com.sun.codemodel.internal.JMod.*;
 
 import java.io.IOException;
@@ -36,11 +37,13 @@ import com.sun.tools.internal.xjc.outline.PackageOutline;
 
 public final class ModernizationPlugin extends Plugin implements Configuration {
 
+    private boolean finalizeFields = false;
     private boolean finalizeMethods = false;
     private boolean privatizeFields = false;
     private boolean useOptional = false;
     private boolean jsr303 = false;
     private boolean jsr305 = false;
+    private boolean jsr349 = false;
     private boolean findbugs = false;
     private boolean jetbrains = false;
     private boolean lombok = false;
@@ -49,6 +52,11 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
     @Override
     public final boolean android() {
         return this.android;
+    }
+
+    @Override
+    public final boolean finalizeFields() {
+        return this.finalizeFields;
     }
 
     @Override
@@ -75,6 +83,11 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
     public boolean jsr305() {
         return this.jsr305;
     }
+    
+    @Override
+    public boolean jsr349() {
+        return this.jsr349;
+    }
 
     @Override
     public boolean lombok() {
@@ -92,18 +105,18 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
     }
 
     /**
-     * Gets the option name to turn on this add-on.
+     * Gets the command line parameter used to enable this plug-in.
      *
-     * <p>
-     * For example, if "abc" is returned, "-abc" will
-     * turn on this plugin. A plugin needs to be turned
-     * on explicitly, or else no other methods of {@link Plugin}
-     * will be invoked.
+     * <p/>
+     * For example, if this method returns "modernize" then having
+     * "-modernize" on the command line instructs XJC to enable
+     * this plug-in. A plug-in must be explicitly enabled before
+     * XJC will invoke any other methods of {@link Plugin}.
      *
-     * <p>
-     * Starting 2.1, when an option matches the name returned
-     * from this method, XJC will then invoke {@link #parseArgument(Options, String[], int)},
-     * allowing plugins to handle arguments to this option.
+     * <p/>
+     * Starting with XJC version 2.1, when XJC enables a plug-in, it
+     * will then invoke {@link #parseArgument(Options, String[], int)}
+     * to allow the plug-in to handle additional arguments.
      */
     @Override
     public String getOptionName() {
@@ -111,7 +124,7 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
     }
 
     /**
-     * Gets the description of this add-on. Used to generate
+     * Gets the description of this plug-on. Used to generate
      * a usage screen.
      *
      * @return
@@ -121,11 +134,12 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
     public String getUsage() {
         return ""
             + "  -modernize         :  add Java 8 support (see the following sub-arguments)\n"
+            + "    -finalize-fields  mark all required fields as final\n"
             + "    -finalize-methods mark all implementation methods as final\n"
             + "    -privatize-fields mark all implementation fields as private\n"
             + "    -j8-optional      return Optional from nullable getters\n"
-            + "    -jsr-303          add nullability annotations from Bean Validation API\n"
-            + "    -jsr-305          add nullability annotations from Annotations for Software Defect Detection\n"
+            + "    -JSR303           add nullability annotations from Bean Validation API\n"
+            + "    -JSR305           add nullability annotations from Annotations for Software Defect Detection\n"
             + "    -findbugs         add nullability annotations from Findbugs\n"
             + "    -lombok           add nullability annotations from Project Lombok\n"
             + "    -android          add nullability annotations from Android's support-annotations package"
@@ -168,6 +182,10 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
      */
     @Override
     public int parseArgument(Options opt, String[] args, int i) throws BadCommandLineException, IOException {
+        if ("-finalize-fields".equals(args[i])) {
+            this.finalizeFields = true;
+            return 1;
+        }
         if ("-finalize-methods".equals(args[i])) {
             this.finalizeMethods = true;
             return 1;
@@ -180,12 +198,17 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
             this.useOptional = true;
             return 1;
         }
-        if ("-jsr-303".equals(args[i])) {
+        if ("-JSR303".equals(args[i])) {
             this.jsr303 = true;
             return 1;
         }
-        if ("-jsr-305".equals(args[i])) {
+        if ("-JSR305".equals(args[i])) {
             this.jsr305 = true;
+            return 1;
+        }
+        if ("-JSR349".equals(args[i])) {
+            this.jsr303 = true;
+            this.jsr349 = true;
             return 1;
         }
         if ("-findbugs".equals(args[i])) {
@@ -204,19 +227,6 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
             this.android = true;
             return 1;
         }
-//        if (args[i].equals("-classpath") || args[i].equals("-cp")) {
-//            String a = opt.requireArgument(args[i], args, ++i);
-//            for (String p : a.split(File.pathSeparator)) {
-//                File file = new File(p);
-//                try {
-//                    classpaths.add(file.toURL());
-//                } catch (MalformedURLException e) {
-//                    throw new BadCommandLineException(
-//                        Messages.format(Messages.NOT_A_VALID_FILENAME,file),e);
-//                }
-//            }
-//            return 2;
-//        }
 
         return 0;
     }
@@ -279,7 +289,7 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
         }
 
         final JCodeModel codeModel = outline.getCodeModel();
-        final JClass optional = codeModel.directClass("java.util.Optional");
+        final JClass optional = new JDirectClassEx(codeModel, "java.util.Optional");
 
         for (final PackageOutline p : outline.getAllPackageContexts()) {
             final JDefinedClass objectFactory = p.objectFactory();
@@ -346,57 +356,61 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
 	}
 
     @Override
-    public @NotNull Iterable<JClass> notNullableAnnotations(final @NotNull JCodeModel model) {
+    public @NotNull Iterable<JClass> notNullableAnnotations(final @NotNull JCodeModel codeModel) {
         final ArrayList<JClass> results = new ArrayList<>();
+
         if (lombok()) {
-            results.add(model.directClass("lombok.NonNull"));
+            results.add(new JDirectClassEx(codeModel, "lombok.NonNull"));
         }
         if (jsr305()) {
-            results.add(model.directClass("javax.annotation.Nonnull"));
+            results.add(new JDirectClassEx(codeModel, "javax.annotation.Nonnull"));
         }
         if (jetbrains()) {
-            results.add(model.directClass("org.jetbrains.annotations.NotNull"));
+            results.add(new JDirectClassEx(codeModel, "org.jetbrains.annotations.NotNull"));
         }
         if (android()) {
-            results.add(model.directClass("android.support.annotation.NonNull"));
+            results.add(new JDirectClassEx(codeModel, "android.support.annotation.NonNull"));
         }
         if (jsr303()) {
-            results.add(model.directClass("javax.validation.constraints.NotNull"));
+            results.add(new JDirectClassEx(codeModel, "javax.validation.constraints.NotNull"));
         }
         if (findbugs()) {
-            results.add(model.directClass("edu.umd.cs.findbugs.annotations.NonNull"));
+            results.add(new JDirectClassEx(codeModel, "edu.umd.cs.findbugs.annotations.NonNull"));
         }
+
         return results;
     }
 
     @Override
-    public @NotNull Iterable<JClass> nullableAnnotations(final @NotNull JCodeModel model) {
+    public @NotNull Iterable<JClass> nullableAnnotations(final @NotNull JCodeModel codeModel) {
         final ArrayList<JClass> results = new ArrayList<>();
+
         if (lombok()) {
             // Lombok does not have an annotation representing a nullable type.
         }
         if (jsr305()) {
-            results.add(model.directClass("javax.annotation.Nullable"));
+            results.add(new JDirectClassEx(codeModel, "javax.annotation.Nullable"));
         }
         if (jsr303()) {
-            results.add(model.directClass("javax.validation.constraints.Null"));
+            results.add(new JDirectClassEx(codeModel, "javax.validation.constraints.Null"));
         }
         if (jetbrains()) {
-            results.add(model.directClass("org.jetbrains.annotations.Nullable"));
+            results.add(new JDirectClassEx(codeModel, "org.jetbrains.annotations.Nullable"));
         }
         if (android()) {
-            results.add(model.directClass("android.support.annotation.Nullable"));
+            results.add(new JDirectClassEx(codeModel, "android.support.annotation.Nullable"));
         }
         if (findbugs()) {
-            results.add(model.directClass("edu.umd.cs.findbugs.annotations.CheckForNull"));
+            results.add(new JDirectClassEx(codeModel, "edu.umd.cs.findbugs.annotations.CheckForNull"));
         }
+
         return results;
     }
 
     private void updateObjectFactory(final ClassOutline c, final Iterable<FieldSummary> ancestorFields, final Iterable<FieldSummary> localFields) {
         if (c.target.isAbstract()) return;
 
-        final JCodeModel codeModel = c.parent().getCodeModel();
+        final JCodeModel codeModel = c.implClass.owner();
         final JInvocation result = JExpr._new(c.implClass);
         final String methodName = "create" + c.ref.name();
         c._package().objectFactory().methods().remove(c._package().objectFactory().getMethod(methodName, new JType[0]));
@@ -458,8 +472,9 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
         }
         m.annotate(SuppressWarnings.class).paramArray("value").param("null").param("unchecked");
         m.type(t);
-        m.body()._return(JExpr.cast(t, p.staticRef("class").invoke("cast").arg("null")));
+        m.body()._return(JExpr.cast(t, p.staticRef("class").invoke("cast").arg(JExpr._null())));
     }
+
 //    if (fieldIsRequired) {
 //        // TODO: Assumes that there is only one constructor.
 //        final Iterator<JMethod> iterator = context.implClass.constructors();
@@ -474,11 +489,12 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
 //    }
 
     private void addConstructor(final ClassOutline c, final Iterable<FieldSummary> ancestorFields, final Iterable<FieldSummary> localFields) {
-        final JCodeModel codeModel = c.parent().getCodeModel();
 
         final JDefinedClass impl = c.implClass;
+        final JCodeModel codeModel = impl.owner();
+
         // Create the skeleton of the value constructor
-        final JMethod constructor = impl.constructor(PUBLIC);
+        final JMethod constructor = impl.constructor(c.target.isAbstract() ? PROTECTED : PUBLIC);
         constructor.javadoc().add("initializing value constructor");
 
         // If our superclass is also being generated, then we can assume it will
@@ -505,7 +521,7 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
         for (final FieldSummary f : nonStaticFields(localFields)) {
             final JVar arg = constructor.param(FINAL, f.type, f.name);
             boolean isReference = f.type.isReference();
-            final JExpression rhs = isReference && f.isRequired ? codeModel.ref(Objects.class).staticInvoke("requireNonNull").arg(arg) : arg;
+            final JExpression rhs = isReference && f.isRequired ? codeModel.ref(Objects.class).staticInvoke("requireNonNull").arg(arg).arg(lit(f.name + " cannot be null")) : arg;
             constructor.body().assign(JExpr.refthis(f.name), rhs);
             if (isReference) {
                 for (final JClass annotation : f.isRequired ? notNullableAnnotations(codeModel) : nullableAnnotations(codeModel)) {
@@ -517,7 +533,19 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
 
     private static void addDefaultConstructor(final ClassOutline c, final Iterable<FieldSummary> localFields) {
         final JMethod defaultConstructor = c.implClass.constructor(NONE);
-        defaultConstructor.javadoc().add("Used by JAXB");
+        defaultConstructor.javadoc().add(""
+            + "Only used by JAXB\n"
+            + "<p>\n"
+            + "  JAXB instantiates an object using the class's default constructor.\n"
+            + "  Unfortunately, this leaves required fields in an invalid state.\n"
+            + "  To circumvent this, we create a package-visible, default constructor\n"
+            + "  that initializes each required (i.e., final) field with a dummy,\n"
+            + "  invalid value. After creation, JAXB initializes each field with the\n"
+            + "  value present in the XML. We assume that JAXB will raise an exception\n"
+            + "  if a required value is missing or is an invalid type. End the end, we\n"
+            + "  should have a properly constructed object.\n"
+            + "</p>"
+        );
         final JBlock body = defaultConstructor.body();
         body.invoke("super");
 

@@ -29,7 +29,7 @@ final class SimpleNType implements NType {
 
     @Override
     public JType toType(final Outline o, final Aspect a) {
-        return requireNonNull(o).getCodeModel().directClass(this.fullName);
+        return new JDirectClassEx(requireNonNull(o).getCodeModel(), this.fullName);
     }
 
 }

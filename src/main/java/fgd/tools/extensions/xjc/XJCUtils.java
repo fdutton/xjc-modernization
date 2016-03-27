@@ -1,12 +1,13 @@
 package fgd.tools.extensions.xjc;
 
+import static java.util.Objects.*;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Objects;
 
 import javax.validation.constraints.NotNull;
 
@@ -31,12 +32,14 @@ public final class XJCUtils {
 
     @NotNull
     public static JBlock clearBody(final JBlock body) {
-        Objects.requireNonNull(body);
+        requireNonNull(body);
 
         try {
             final Field field = body.getClass().getDeclaredField("content");
             field.setAccessible(true);
-            List.class.cast(field.get(body)).clear();
+            final List<?> theList = List.class.cast(field.get(body));
+            assert null != theList;
+            theList.clear();
             body.pos(0);
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new WrappedReflectiveOperationException("Unable to access content field of JBlock", e);
@@ -50,12 +53,12 @@ public final class XJCUtils {
     }
 
     public static boolean isRequired(@NotNull final FieldOutline f) {
-        Objects.requireNonNull(f);
+        requireNonNull(f);
         return isRequired(f.getPropertyInfo());
     }
 
 	public static boolean isRequired(final CPropertyInfo propertyInfo) {
-        Objects.requireNonNull(propertyInfo);
+        requireNonNull(propertyInfo);
 		switch (propertyInfo.kind()) {
             case ATTRIBUTE: return ((XSAttributeUse) propertyInfo.getSchemaComponent()).isRequired();
             case ELEMENT: return !propertyInfo.isCollection() && !BigInteger.ZERO.equals(((XSParticle) propertyInfo.getSchemaComponent()).getMinOccurs());
@@ -64,7 +67,7 @@ public final class XJCUtils {
 	}
 
 	public static String extractDocumentation(@NotNull final CPropertyInfo propertyInfo) {
-		Objects.requireNonNull(propertyInfo);
+		requireNonNull(propertyInfo);
 
 		final StringBuilder sb = new StringBuilder();
 
@@ -115,7 +118,7 @@ final class WrappedReflectiveOperationException extends RuntimeException {
      *          if the cause is {@code null}
      */
     public WrappedReflectiveOperationException(String message, ReflectiveOperationException cause) {
-        super(message, Objects.requireNonNull(cause));
+        super(message, requireNonNull(cause));
     }
 
     /**
@@ -128,7 +131,7 @@ final class WrappedReflectiveOperationException extends RuntimeException {
      *          if the cause is {@code null}
      */
     public WrappedReflectiveOperationException(ReflectiveOperationException cause) {
-        super(Objects.requireNonNull(cause));
+        super(requireNonNull(cause));
     }
 
     /**

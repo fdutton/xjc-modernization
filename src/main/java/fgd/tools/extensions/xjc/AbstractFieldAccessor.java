@@ -1,6 +1,6 @@
 package fgd.tools.extensions.xjc;
 
-import static java.util.Objects.requireNonNull;
+import static java.util.Objects.*;
 
 import javax.validation.constraints.NotNull;
 

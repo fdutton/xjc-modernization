@@ -12,8 +12,8 @@ public class ModernizationFieldRendererFactory extends FieldRendererFactory {
 
     private final @NotNull Configuration configuration;
 
-    public ModernizationFieldRendererFactory(@NotNull final Configuration configuration) {
-        this.configuration = requireNonNull(configuration);
+    public ModernizationFieldRendererFactory(final @NotNull Configuration configuration) {
+        this.configuration = requireNonNull(configuration, "configuration cannot be null");
     }
 
     @Override

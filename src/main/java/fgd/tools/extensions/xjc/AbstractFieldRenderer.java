@@ -20,6 +20,7 @@ import javax.xml.namespace.QName;
 
 import com.sun.codemodel.internal.JAnnotatable;
 import com.sun.codemodel.internal.JClass;
+import com.sun.codemodel.internal.JPrimitiveType;
 import com.sun.codemodel.internal.JType;
 import com.sun.tools.internal.xjc.api.SpecVersion;
 import com.sun.tools.internal.xjc.generator.annotation.spec.XmlAnyElementWriter;
@@ -65,10 +66,12 @@ public abstract class AbstractFieldRenderer implements FieldRenderer {
      * as the method name.
      */
     protected final String getGetterMethod(ClassOutline context, CPropertyInfo propertyInfo, JType type) {
+        final JPrimitiveType BOOLEAN = context.parent().getCodeModel().BOOLEAN;
+
         if (context.parent().getModel().options.enableIntrospection) {
-            return ((type.isPrimitive() && type.boxify().getPrimitiveType() == context.parent().getCodeModel().BOOLEAN) ? "is" : "get") + propertyInfo.getName(true);
+            return ((type.isPrimitive() && type.boxify().getPrimitiveType() == BOOLEAN) ? "is" : "get") + propertyInfo.getName(true);
         } else {
-            return (type.boxify().getPrimitiveType() == context.parent().getCodeModel().BOOLEAN ? "is" : "get") + propertyInfo.getName(true);
+            return (type.boxify().getPrimitiveType() == BOOLEAN ? "is" : "get") + propertyInfo.getName(true);
         }
     }
 
