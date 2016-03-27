@@ -5,6 +5,7 @@ import static com.sun.codemodel.internal.JMod.*;
 import javax.validation.constraints.NotNull;
 
 import com.sun.codemodel.internal.JClass;
+import com.sun.codemodel.internal.JCodeModel;
 import com.sun.codemodel.internal.JDefinedClass;
 import com.sun.codemodel.internal.JDocComment;
 import com.sun.codemodel.internal.JMethod;
@@ -24,7 +25,9 @@ public final class IntfAndImplMethodWriter extends BeanOnlyMethodWriter {
 	public JVar addParameter(JType type, String name) {
 		final JVar parameter = this.signature.param(type, name);
         if (!type.isPrimitive()) {
-            for (final JClass annotation : isRequiredField() ? configuration().notNullableAnnotations(type.owner()) : configuration().nullableAnnotations(type.owner())) {
+            final JCodeModel owner = type.owner();
+            assert null != owner;
+			for (final JClass annotation : isRequiredField() ? configuration().notNullableAnnotations(owner) : configuration().nullableAnnotations(owner)) {
                 parameter.annotate(annotation);
             }
         }
@@ -34,7 +37,9 @@ public final class IntfAndImplMethodWriter extends BeanOnlyMethodWriter {
 	public JMethod declareMethod(JType returnType, String methodName) {
 		this.signature = this._interface.method(NONE, returnType, methodName);
         if (!returnType.isPrimitive()) {
-            for (final JClass annotation : isMultiValuedField() || isRequiredField() || configuration().useOptional() ? configuration().notNullableAnnotations(returnType.owner()) : configuration().nullableAnnotations(returnType.owner())) {
+            final JCodeModel owner = returnType.owner();
+            assert null != owner;
+			for (final JClass annotation : isMultiValuedField() || isRequiredField() || configuration().useOptional() ? configuration().notNullableAnnotations(owner) : configuration().nullableAnnotations(owner)) {
                 this.signature.annotate(annotation);
             }
         }

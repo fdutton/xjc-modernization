@@ -289,6 +289,7 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
         }
 
         final JCodeModel codeModel = outline.getCodeModel();
+        assert null != codeModel;
         final JClass optional = new JDirectClassEx(codeModel, "java.util.Optional");
 
         for (final PackageOutline p : outline.getAllPackageContexts()) {
@@ -411,6 +412,7 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
         if (c.target.isAbstract()) return;
 
         final JCodeModel codeModel = c.implClass.owner();
+        assert null != codeModel;
         final JInvocation result = JExpr._new(c.implClass);
         final String methodName = "create" + c.ref.name();
         c._package().objectFactory().methods().remove(c._package().objectFactory().getMethod(methodName, new JType[0]));
@@ -467,7 +469,9 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
         final JTypeVar t = m.generify("T");
         final JClass p = objectFactory._package().owner().ref(Object.class);
 
-        for (final JClass annotation : notNullableAnnotations(objectFactory.owner())) {
+        final JCodeModel owner = objectFactory.owner();
+        assert null != owner;
+		for (final JClass annotation : notNullableAnnotations(owner)) {
             m.annotate(annotation);
         }
         m.annotate(SuppressWarnings.class).paramArray("value").param("null").param("unchecked");
@@ -492,6 +496,7 @@ public final class ModernizationPlugin extends Plugin implements Configuration {
 
         final JDefinedClass impl = c.implClass;
         final JCodeModel codeModel = impl.owner();
+        assert null != codeModel;
 
         // Create the skeleton of the value constructor
         final JMethod constructor = impl.constructor(c.target.isAbstract() ? PROTECTED : PUBLIC);

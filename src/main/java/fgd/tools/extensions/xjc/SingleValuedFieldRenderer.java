@@ -193,7 +193,9 @@ public final class SingleValuedFieldRenderer extends AbstractFieldRenderer {
                 System.currentTimeMillis();
             }
         }
-        for (final JClass annotation : requiredField ? configuration().notNullableAnnotations(context.implClass.owner()) : configuration().nullableAnnotations(context.implClass.owner())) {
+        final JCodeModel owner = context.implClass.owner();
+        assert null != owner;
+		for (final JClass annotation : requiredField ? configuration().notNullableAnnotations(owner) : configuration().nullableAnnotations(owner)) {
             field.annotate(annotation);
         }
         annotate(context, propertyInfo, field, exposedType);

@@ -104,7 +104,9 @@ public final class MultiValuedFieldRenderer extends AbstractFieldRenderer {
     private final JFieldVar emitField(ClassOutlineImpl context, CPropertyInfo propertyInfo, JType exposedType, JType memberType) {
         final int visibility = configuration().privatizeFields() ? PRIVATE : PROTECTED;
         final JFieldVar field = context.implClass.field(visibility, exposedType, propertyInfo.getName(false));
-        for (final JClass annotation : configuration().nullableAnnotations(context.implClass.owner())) {
+        final JCodeModel owner = context.implClass.owner();
+        assert null != owner;
+		for (final JClass annotation : configuration().nullableAnnotations(owner)) {
             field.annotate(annotation);
         }
         annotate(context, propertyInfo, field, memberType);
